@@ -10,9 +10,9 @@ import { supabase } from './lib/supabase';
 const Logo = ({ variant = 1 }: { variant?: 1 | 2 }) => (
   <div className="flex items-center gap-2">
     <div className={`w-10 h-10 bg-primary rounded-2xl flex items-center justify-center p-1`}>
-      <img src="https://raw.githubusercontent.com/BenjaminZimerman/yacajobs-assets/main/logo1.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => {
-        // Fallback if the raw github link doesn't work (which it won't until uploaded)
-        e.currentTarget.src = "https://picsum.photos/seed/yaca/100/100";
+      <img src="/images/logo1.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => {
+        // accion alternativa si la imagen no carga
+        e.currentTarget.src = "/images/logo1.png";
       }} />
     </div>
     {variant === 2 && <span className="text-2xl font-bold tracking-tight text-primary">YacaJobs</span>}
@@ -61,7 +61,7 @@ const LandingPage = ({ onStart }: { onStart: (role: UserRole | null, isLogin: bo
     >
       <div className="flex justify-center mb-8">
         <div className="p-8 bg-white rounded-[4rem] shadow-xl">
-           <img src="https://raw.githubusercontent.com/BenjaminZimerman/yacajobs-assets/main/logo2.png" alt="Hero Logo" className="w-64 h-auto" />
+           <img src="/images/logo2.png" alt="Hero Logo" className="w-64 h-auto" />
         </div>
       </div>
       
