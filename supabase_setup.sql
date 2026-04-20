@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS publicaciones (
     certificado_publi BOOLEAN DEFAULT FALSE, -- Si requiere certificado
     id_cliente INT REFERENCES clientes(id_cliente) ON DELETE CASCADE,
     id_oficio INT REFERENCES oficios(id_oficio) ON DELETE SET NULL,
-    estado VARCHAR(20) DEFAULT 'Abierta' -- 'Abierta', 'Cerrada', 'En Proceso'
+    estado_publi VARCHAR(20) DEFAULT 'Abierta' -- 'Abierta', 'Cerrada', 'En Proceso'
 );
 
 -- 6. Tabla de Postulaciones (Presupuestos del Trabajador)
@@ -71,8 +71,7 @@ CREATE TABLE IF NOT EXISTS postulaciones (
     id_postulacion SERIAL PRIMARY KEY,
     id_trabajador INT REFERENCES trabajadores(id_trabajador) ON DELETE CASCADE,
     id_publi INT REFERENCES publicaciones(id_publi) ON DELETE CASCADE,
-    presupuesto DECIMAL(10,2) NOT NULL,
-    materiales TEXT, -- Descripción de materiales necesarios
+    presupuesto DECIMAL(12,2) NOT NULL,
     descripcion_postulacion TEXT,
     fecha_postulacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
