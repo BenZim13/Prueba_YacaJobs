@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './backend/src/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import express from 'express';
+import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -43,20 +44,31 @@ async function bootstrap() {
       next();
     });
 
-    const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+    const isVercel = !!process.env.VERCEL || !!process.env.AWS_REGION;
+    const isProduction = process.env.NODE_ENV === 'production' || isVercel;
     const PORT = process.env.PORT || 3000;
 
-    if (isProduction && !process.env.VERCEL) {
-      const distPath = path.join(process.cwd(), 'dist');
-      expressApp.use(express.static(distPath));
-      // SPA Fallback for production (Only for standalone servers)
-      expressApp.get('*', (req: any, res: any, next: any) => {
-        if (req.url.startsWith('/api')) return next();
-        res.sendFile(path.join(distPath, 'index.html'));
+    if (isProduction) {
+      if (!isVercel) {
+        const distPath = path.join(process.cwd(), 'dist');
+        expressApp.use(express.static(distPath));
+        // SPA Fallback for production (Only for standalone servers)
+        expressApp.get('*', (req: any, res: any, next: any) => {
+          if (req.url.startsWith('/api')) return next();
+          res.sendFile(path.join(distPath, 'index.html'));
+        });
+      }
+    } else {
+      // Vite middleware for development
+      console.log('--- ENABLING VITE MIDDLEWARE ---');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
       });
+      expressApp.use(vite.middlewares);
     }
 
-    if (!process.env.VERCEL) {
+    if (!isVercel) {
       console.log('Starting to listen...');
       await app.listen(PORT, '0.0.0.0');
       console.log(`${isProduction ? 'PRODUCTION' : 'BACKEND'} READY: http://0.0.0.0:${PORT}`);
@@ -68,18 +80,22 @@ async function bootstrap() {
     return expressApp;
   } catch (error) {
     console.error('FATAL BOOTSTRAP ERROR:', error);
-    if (!process.env.VERCEL) process.exit(1);
+    if (!(!!process.env.VERCEL || !!process.env.AWS_REGION)) process.exit(1);
     throw error;
   }
 }
 
 // Support for local/standalone execution
-if (!process.env.VERCEL) {
-  bootstrap();
+if (!(!!process.env.VERCEL || !!process.env.AWS_REGION)) {
+  bootstrap().catch(err => {
+    console.error('Failed to start standalone server:', err);
+  });
 }
 
-// Export for Vercel
-export default async (req: any, res: any) => {
+// Export for Vercel / Serverless
+export const handler = async (req: any, res: any) => {
   const app = await bootstrap();
   return app(req, res);
 };
+
+export default handler;
