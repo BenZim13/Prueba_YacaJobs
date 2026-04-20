@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Briefcase, User, LogOut, ChevronRight, FileText, CheckCircle2, Star, ShieldCheck, MapPin, ChevronLeft, Loader2 } from 'lucide-react';
+import { Search, Briefcase, User, LogOut, ChevronRight, FileText, CheckCircle2, Star, ShieldCheck, MapPin, ChevronLeft, Loader2, CalendarDays, Mail, Phone } from 'lucide-react';
 import { COLORS } from './constants';
 import { UserRole } from './types';
 import { supabase } from './lib/supabase';
@@ -62,7 +62,7 @@ const LandingPage = ({ onStart }: { onStart: (role: UserRole | null, isLogin: bo
       <div className="flex justify-center mb-8">
         <div className="p-8 bg-white rounded-[4rem] shadow-xl">
            <img src="/images/logo1.png" alt="Hero Logo" className="w-64 h-auto" onError={(e) => {
-             e.currentTarget.src = "/images/logo1.png";
+             e.currentTarget.src = "/images/logo2.png";
            }} />
         </div>
       </div>
@@ -531,6 +531,9 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   const [viewingPostulations, setViewingPostulations] = useState<any>(null);
   const [postulations, setPostulations] = useState<any[]>([]);
   const [isLoadingPostulations, setIsLoadingPostulations] = useState(false);
+  const [selectedWorkerProfile, setSelectedWorkerProfile] = useState<any>(null);
+  const [isLoadingWorkerProfile, setIsLoadingWorkerProfile] = useState(false);
+  const [workerProfileError, setWorkerProfileError] = useState('');
 
   const loadInitial = async () => {
     const [tRes, pRes] = await Promise.all([
@@ -600,6 +603,30 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
     }
   };
 
+  const handleViewWorkerProfile = async (workerId: number) => {
+    setSelectedWorkerProfile(null);
+    setWorkerProfileError('');
+    setIsLoadingWorkerProfile(true);
+    try {
+      const res = await fetch(`/api/jobs/workers/${workerId}`);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.message || 'No se pudo cargar el perfil.');
+      setSelectedWorkerProfile(payload);
+    } catch (error: any) {
+      setWorkerProfileError(error.message || 'No se pudo cargar el perfil.');
+    } finally {
+      setIsLoadingWorkerProfile(false);
+    }
+  };
+
+  const closeWorkerProfile = () => {
+    setSelectedWorkerProfile(null);
+    setWorkerProfileError('');
+    setIsLoadingWorkerProfile(false);
+  };
+
+  const workerProfileOpen = Boolean(selectedWorkerProfile || workerProfileError || isLoadingWorkerProfile);
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <aside className="w-64 bg-white border-r border-slate-200 p-6 flex flex-col gap-8">
@@ -661,7 +688,7 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
                         <Star key={i} className={`w-3 h-3 ${i < Math.round(Number(w.puntuacion || 0)) ? 'text-yellow-400 fill-current' : 'text-slate-200'}`}/>
                       ))}
                     </div>
-                    <Button variant="secondary" className="w-full text-xs">Ver Perfil</Button>
+                    <Button variant="secondary" className="w-full text-xs" onClick={() => handleViewWorkerProfile(w.id_trabajador)}>Ver Perfil</Button>
                  </Card>
                )) : (
                  <div className="col-span-full py-12 text-center text-slate-400 font-medium">No se encontraron trabajadores en esta categoría.</div>
@@ -763,7 +790,7 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
                         <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl italic">"{p.descripcion_postulacion}"</p>
                         <div className="mt-4 flex gap-2">
                            <Button className="w-full text-xs py-2">Contactar</Button>
-                           <Button variant="outline" className="w-full text-xs py-2">Ver Perfil</Button>
+                           <Button variant="outline" className="w-full text-xs py-2" onClick={() => handleViewWorkerProfile(p.id_trabajador)}>Ver Perfil</Button>
                         </div>
                       </Card>
                     ))}
@@ -771,6 +798,110 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
                 ) : (
                   <div className="py-20 text-center text-slate-400">Aún no has recibido presupuestos para esta publicación.</div>
                 )}
+              </Card>
+            </motion.div>
+          </div>
+        )}
+
+        {workerProfileOpen && (
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-5xl">
+              <Card className="p-0 overflow-hidden bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+                <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+                  <div className="flex items-center gap-6">
+                    <img
+                      src={selectedWorkerProfile?.url_foto_perfil || '/images/logo1.png'}
+                      alt="Foto de perfil"
+                      className="w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-white/10"
+                      onError={(e) => {
+                        e.currentTarget.src = '/images/logo1.png';
+                      }}
+                    />
+                    <div className="space-y-2">
+                      <h3 className="text-3xl font-extrabold tracking-tight">{selectedWorkerProfile?.nombre_y_apellido_trabajador || 'Perfil de trabajador'}</h3>
+                      <p className="text-sm text-slate-300">{selectedWorkerProfile?.oficios?.map((o: any) => o.nombre_oficio).join(' • ') || 'Oficio no informado'}</p>
+                      {selectedWorkerProfile?.fecha_registro && (
+                        <div className="flex items-center gap-2 text-sm text-slate-300">
+                          <CalendarDays className="w-4 h-4" />
+                          Miembro desde {new Date(selectedWorkerProfile.fecha_registro).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <Button variant="primary" className="px-8 py-3 text-base self-start md:self-center" onClick={closeWorkerProfile}>Cerrar perfil</Button>
+                </div>
+
+                <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-2 space-y-8">
+                    {isLoadingWorkerProfile ? (
+                      <div className="py-20 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
+                    ) : workerProfileError ? (
+                      <Card className="p-6 border border-red-200 bg-red-50 text-red-700 font-semibold">{workerProfileError}</Card>
+                    ) : (
+                      <>
+                        <section className="space-y-3">
+                          <h4 className="text-3xl font-extrabold text-slate-900">Trabajos realizados</h4>
+                          <p className="text-slate-600">
+                            {selectedWorkerProfile?.trabajos_realizados > 0
+                              ? `Este profesional tiene ${selectedWorkerProfile.trabajos_realizados} trabajos/postulaciones registrados en la plataforma.`
+                              : 'Este profesional aun no tiene trabajos cargados.'}
+                          </p>
+                        </section>
+
+                        <section className="space-y-4">
+                          <h4 className="text-3xl font-extrabold text-slate-900">Reseñas</h4>
+                          {selectedWorkerProfile?.valoraciones?.length ? (
+                            <div className="space-y-3">
+                              {selectedWorkerProfile.valoraciones.map((review: any) => (
+                                <Card key={review.id_valoracion} className="p-4 border border-slate-100">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="font-bold text-sm text-slate-800">{review.cliente}</p>
+                                    <div className="flex gap-1">
+                                      {[...Array(5)].map((_, i) => (
+                                        <Star key={i} className={`w-3 h-3 ${i < Number(review.puntuacion || 0) ? 'text-yellow-400 fill-current' : 'text-slate-200'}`} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-slate-600">{review.comentario || 'Sin comentario.'}</p>
+                                </Card>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-slate-500">Este profesional aun no tiene reseñas.</p>
+                          )}
+                        </section>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <Card className="p-6 space-y-4 border border-slate-200">
+                      <h5 className="text-2xl font-bold text-slate-900">Contacto</h5>
+                      <div className="space-y-3 text-sm text-slate-700">
+                        <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-primary" /> {selectedWorkerProfile?.correo_trabajador || 'No informado'}</div>
+                        <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> {selectedWorkerProfile?.nro_celular_trabajador || 'No informado'}</div>
+                      </div>
+                    </Card>
+
+                    <Card className="p-6 space-y-3 border border-slate-200">
+                      <h5 className="text-2xl font-bold text-slate-900">Experiencia</h5>
+                      <p className="text-sm text-slate-600">Puntuación promedio</p>
+                      <div className="text-3xl font-extrabold text-primary">{Number(selectedWorkerProfile?.puntuacion || 0).toFixed(1)}</div>
+                      <p className="text-sm text-slate-500">Basado en {selectedWorkerProfile?.cantidad_valoraciones || 0} valoraciones</p>
+                    </Card>
+
+                    <Card className="p-6 space-y-3 border border-slate-200">
+                      <h5 className="text-2xl font-bold text-slate-900">Habilidades</h5>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedWorkerProfile?.oficios?.length ? selectedWorkerProfile.oficios.map((trade: any) => (
+                          <span key={trade.id_oficio} className="text-xs font-bold px-3 py-1 rounded-full bg-primary/10 text-primary">
+                            {trade.nombre_oficio}
+                          </span>
+                        )) : <p className="text-sm text-slate-500">Sin oficios registrados.</p>}
+                      </div>
+                    </Card>
+                  </div>
+                </div>
               </Card>
             </motion.div>
           </div>
