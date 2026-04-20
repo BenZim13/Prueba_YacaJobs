@@ -13,7 +13,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+let cachedApp: any;
+
 async function bootstrap() {
+  if (cachedApp) return cachedApp;
+
   try {
     console.log('--- STARTING BOOTSTRAP ---');
     const app = await NestFactory.create(AppModule);
@@ -40,26 +44,43 @@ async function bootstrap() {
       next();
     });
 
-    const isProduction = process.env.NODE_ENV === 'production';
-    const PORT = isProduction ? 3000 : 3001;
+    const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+    const PORT = process.env.PORT || 3000;
 
-    if (isProduction) {
+    if (isProduction && !process.env.VERCEL) {
       const distPath = path.join(process.cwd(), 'dist');
       expressApp.use(express.static(distPath));
-      // SPA Fallback for production
+      // SPA Fallback for production (Only for standalone servers)
       expressApp.get('*', (req: any, res: any, next: any) => {
         if (req.url.startsWith('/api')) return next();
         res.sendFile(path.join(distPath, 'index.html'));
       });
     }
 
-    console.log('Starting to listen...');
-    await app.listen(PORT, '0.0.0.0');
-    console.log(`${isProduction ? 'PRODUCTION' : 'BACKEND'} READY: http://0.0.0.0:${PORT}`);
+    if (!process.env.VERCEL) {
+      console.log('Starting to listen...');
+      await app.listen(PORT, '0.0.0.0');
+      console.log(`${isProduction ? 'PRODUCTION' : 'BACKEND'} READY: http://0.0.0.0:${PORT}`);
+    } else {
+      await app.init();
+    }
+
+    cachedApp = expressApp;
+    return expressApp;
   } catch (error) {
     console.error('FATAL BOOTSTRAP ERROR:', error);
-    process.exit(1);
+    if (!process.env.VERCEL) process.exit(1);
+    throw error;
   }
 }
 
-bootstrap();
+// Support for local/standalone execution
+if (!process.env.VERCEL) {
+  bootstrap();
+}
+
+// Export for Vercel
+export default async (req: any, res: any) => {
+  const app = await bootstrap();
+  return app(req, res);
+};
