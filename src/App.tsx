@@ -50,6 +50,10 @@ const Button = ({ children, onClick, variant = 'primary', className = "", disabl
   );
 };
 
+const getUserDisplayName = (user: any) => {
+  return user?.name || user?.nombre_y_apellido_cliente || user?.nombre_y_apellido_trabajador || 'Usuario';
+};
+
 // --- Views ---
 
 const LandingPage = ({ onStart }: { onStart: (role: UserRole | null, isLogin: boolean) => void }) => (
@@ -519,6 +523,7 @@ const AuthForm = ({ initialIsLogin, onAuth, onBackToLanding }: { initialIsLogin:
 };
 
 const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }) => {
+  const displayName = getUserDisplayName(user);
   const [activeTab, setActiveTab] = useState<'search' | 'posts' | 'profile'>('search');
   const [trades, setTrades] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -526,7 +531,7 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   const [searchQuery, setSearchQuery] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [newPost, setNewPost] = useState({ tradeId: '', description: '', urgency: 'Baja' });
-  const [profileData, setProfileData] = useState({ ...user });
+  const [profileData, setProfileData] = useState({ ...user, name: displayName });
   const [isSaving, setIsSaving] = useState(false);
   const [profileNotice, setProfileNotice] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
   const [viewingPostulations, setViewingPostulations] = useState<any>(null);
@@ -655,8 +660,8 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
         </nav>
         <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
            <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">{user.name?.[0] || 'U'}</div>
-             <div className="truncate text-xs font-bold">{user.name || 'Usuario'}</div>
+             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">{displayName?.[0] || 'U'}</div>
+             <div className="truncate text-xs font-bold">{displayName}</div>
            </div>
            <button onClick={onLogout} className="text-xs font-bold text-red-400 hover:text-red-600 flex items-center gap-2">
              <LogOut className="w-4 h-4"/> Salir
@@ -971,6 +976,7 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
 };
 
 const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }) => {
+  const displayName = getUserDisplayName(user);
   const [activeTab, setActiveTab] = useState<'forum' | 'profile'>('forum');
   const [forumPosts, setForumPosts] = useState<any[]>([]);
   const [isPostulating, setIsPostulating] = useState<any>(null);
@@ -978,7 +984,7 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   const [postulationNotice, setPostulationNotice] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
   const [profileNotice, setProfileNotice] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
   const [isLoading, setIsLoading] = useState(false);
-  const [profileData, setProfileData] = useState({ ...user });
+  const [profileData, setProfileData] = useState({ ...user, name: displayName });
   const [isSaving, setIsSaving] = useState(false);
 
   const loadPosts = async () => {
@@ -1058,8 +1064,8 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
         </nav>
         <div className="pt-6 border-t flex flex-col gap-4">
            <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">{user.name?.[0]}</div>
-             <div className="truncate text-xs font-bold">{user.name}</div>
+             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">{displayName?.[0] || 'U'}</div>
+             <div className="truncate text-xs font-bold">{displayName}</div>
            </div>
            <button onClick={onLogout} className="text-xs font-bold text-red-400 hover:text-red-600 flex items-center gap-2">
              <LogOut className="w-4 h-4"/> Salir
@@ -1187,7 +1193,7 @@ export default function App() {
   };
 
   const handleAuth = (userData: any) => {
-    setUser(userData);
+    setUser({ ...userData, name: getUserDisplayName(userData) });
     setView('dashboard');
   };
 
