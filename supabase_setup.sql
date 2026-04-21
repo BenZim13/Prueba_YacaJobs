@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     contraseña_cliente VARCHAR(100) NOT NULL,
     nombre_y_apellido_cliente VARCHAR(100) NOT NULL,
     dni_cliente INT UNIQUE NOT NULL,
+    edad_cliente INT NOT NULL,
     correo_cliente VARCHAR(100) UNIQUE NOT NULL,
     celular_cliente VARCHAR(20) NOT NULL,
     url_foto_perfil TEXT,
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS trabajadores (
     contraseña_trabajador VARCHAR(100) NOT NULL,
     nombre_y_apellido_trabajador VARCHAR(100) NOT NULL,
     dni_trabajador INT UNIQUE NOT NULL,
+    edad_trabajador INT NOT NULL,
     correo_trabajador VARCHAR(100) UNIQUE NOT NULL,
     nro_celular_trabajador VARCHAR(20) NOT NULL,
     constancia_policial BOOLEAN DEFAULT FALSE,
@@ -44,6 +46,10 @@ CREATE TABLE IF NOT EXISTS trabajadores (
     puntuacion DECIMAL(3,2) DEFAULT 0.00,
     fecha_registro TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Compatibilidad para bases ya creadas sin edad
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS edad_cliente INT;
+ALTER TABLE trabajadores ADD COLUMN IF NOT EXISTS edad_trabajador INT;
 
 -- 4. Tabla de Asociación Trabajador-Oficio (N a N)
 CREATE TABLE IF NOT EXISTS oficio_del_trabajador (

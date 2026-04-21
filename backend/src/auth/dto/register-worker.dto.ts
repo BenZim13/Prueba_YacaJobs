@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsNumber, Min, IsUrl, IsOptional, MinLength, IsNotEmpty, IsBoolean, IsArray } from 'class-validator';
+import { IsString, IsEmail, IsNumber, IsInt, Min, IsUrl, IsOptional, MinLength, IsNotEmpty, IsBoolean, IsArray } from 'class-validator';
 
 export class RegisterWorkerDto {
   @IsString({ message: 'El nombre y apellido debe ser texto.' })
@@ -15,6 +15,10 @@ export class RegisterWorkerDto {
   @IsNumber({}, { message: 'El DNI debe ser numerico.' })
   @Min(1000000, { message: 'El DNI debe empezar como máximo en 10 millones' })
   dni_trabajador!: number;
+
+  @IsInt({ message: 'La edad debe ser numerica.' })
+  @Min(18, { message: 'La edad debe ser mayor o igual a 18 años.' })
+  edad_trabajador!: number;
 
   @IsString({ message: '' })
   nro_celular_trabajador!: string;
