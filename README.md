@@ -1,4 +1,4 @@
-# YacaJobs - Plataforma de Oficios 🐊
+# YacaJobs - Plataforma de Oficios 
 
 ¡Bienvenido a **YacaJobs!** Una plataforma full-stack moderna diseñada para conectar clientes con profesionales de oficios (plomeros, electricistas, carpinteros) bajo una estética **Soft UI** y una arquitectura robusta.
 
@@ -70,6 +70,8 @@ npm install
 npm run dev
 ```
 El servidor correrá en `http://localhost:3000`, sirviendo tanto la API como el frontend con HMR.
+### 4 . Ejecución Web
+https://prueba-yaca-jobs-theta.vercel.app/
 
 ---
 *Desarrollado para el Proyecto de Ingeniería de Software (2026).*
