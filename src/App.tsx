@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Briefcase, User, LogOut, ChevronRight, FileText, CheckCircle2, Star, ShieldCheck, MapPin, ChevronLeft, Loader2 } from 'lucide-react';
+import { Search, Briefcase, User, LogOut, ChevronRight, FileText, CheckCircle2, Star, ShieldCheck, MapPin, ChevronLeft, Loader2, CalendarDays, Mail, Phone } from 'lucide-react';
 import { COLORS } from './constants';
 import { UserRole } from './types';
 import { supabase } from './lib/supabase';
@@ -62,7 +62,7 @@ const LandingPage = ({ onStart }: { onStart: (role: UserRole | null, isLogin: bo
       <div className="flex justify-center mb-8">
         <div className="p-8 bg-white rounded-[4rem] shadow-xl">
            <img src="/images/logo1.png" alt="Hero Logo" className="w-64 h-auto" onError={(e) => {
-             e.currentTarget.src = "/images/logo1.png";
+             e.currentTarget.src = "/images/logo2.png";
            }} />
         </div>
       </div>
@@ -528,9 +528,14 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   const [newPost, setNewPost] = useState({ tradeId: '', description: '', urgency: 'Baja' });
   const [profileData, setProfileData] = useState({ ...user });
   const [isSaving, setIsSaving] = useState(false);
+  const [profileNotice, setProfileNotice] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
   const [viewingPostulations, setViewingPostulations] = useState<any>(null);
   const [postulations, setPostulations] = useState<any[]>([]);
+  const [postulationsSort, setPostulationsSort] = useState<'price_asc' | 'rating_desc'>('price_asc');
   const [isLoadingPostulations, setIsLoadingPostulations] = useState(false);
+  const [selectedWorkerProfile, setSelectedWorkerProfile] = useState<any>(null);
+  const [isLoadingWorkerProfile, setIsLoadingWorkerProfile] = useState(false);
+  const [workerProfileError, setWorkerProfileError] = useState('');
 
   const loadInitial = async () => {
     const [tRes, pRes] = await Promise.all([
@@ -567,6 +572,7 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
 
   const handleUpdateProfile = async () => {
     setIsSaving(true);
+    setProfileNotice({ text: '', type: null });
     try {
       const res = await fetch('/api/jobs/profile/update', {
         method: 'POST',
@@ -582,8 +588,13 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
         })
       });
       if (res.ok) {
-        alert('Perfil actualizado con éxito');
+        setProfileNotice({ text: 'Perfil actualizado con exito.', type: 'success' });
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setProfileNotice({ text: errorData.message || 'No se pudo actualizar el perfil.', type: 'error' });
       }
+    } catch {
+      setProfileNotice({ text: 'No se pudo conectar con el servidor. Intenta nuevamente.', type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -591,6 +602,7 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
 
   const handleViewPostulations = async (post: any) => {
     setViewingPostulations(post);
+    setPostulationsSort('price_asc');
     setIsLoadingPostulations(true);
     try {
       const res = await fetch(`/api/jobs/postulations/${post.id_publi}`);
@@ -599,6 +611,38 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
       setIsLoadingPostulations(false);
     }
   };
+
+  const sortedPostulations = React.useMemo(() => {
+    const list = [...postulations];
+    if (postulationsSort === 'price_asc') {
+      return list.sort((a, b) => Number(a.presupuesto || 0) - Number(b.presupuesto || 0));
+    }
+    return list.sort((a, b) => Number(b.trabajadores?.puntuacion || 0) - Number(a.trabajadores?.puntuacion || 0));
+  }, [postulations, postulationsSort]);
+
+  const handleViewWorkerProfile = async (workerId: number) => {
+    setSelectedWorkerProfile(null);
+    setWorkerProfileError('');
+    setIsLoadingWorkerProfile(true);
+    try {
+      const res = await fetch(`/api/jobs/workers/${workerId}`);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.message || 'No se pudo cargar el perfil.');
+      setSelectedWorkerProfile(payload);
+    } catch (error: any) {
+      setWorkerProfileError(error.message || 'No se pudo cargar el perfil.');
+    } finally {
+      setIsLoadingWorkerProfile(false);
+    }
+  };
+
+  const closeWorkerProfile = () => {
+    setSelectedWorkerProfile(null);
+    setWorkerProfileError('');
+    setIsLoadingWorkerProfile(false);
+  };
+
+  const workerProfileOpen = Boolean(selectedWorkerProfile || workerProfileError || isLoadingWorkerProfile);
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -661,7 +705,7 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
                         <Star key={i} className={`w-3 h-3 ${i < Math.round(Number(w.puntuacion || 0)) ? 'text-yellow-400 fill-current' : 'text-slate-200'}`}/>
                       ))}
                     </div>
-                    <Button variant="secondary" className="w-full text-xs">Ver Perfil</Button>
+                    <Button variant="secondary" className="w-full text-xs" onClick={() => handleViewWorkerProfile(w.id_trabajador)}>Ver Perfil</Button>
                  </Card>
                )) : (
                  <div className="col-span-full py-12 text-center text-slate-400 font-medium">No se encontraron trabajadores en esta categoría.</div>
@@ -730,16 +774,26 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
                     <h3 className="text-xl font-bold">Presupuestos Recibidos</h3>
                     <p className="text-xs text-slate-400 mt-1">{viewingPostulations.descripcion_publi}</p>
                   </div>
-                  <Button variant="ghost" onClick={() => setViewingPostulations(null)}>
-                    <ChevronLeft className="w-4 h-4 mr-2"/> Volver
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <select
+                      className="input-soft text-xs py-2"
+                      value={postulationsSort}
+                      onChange={e => setPostulationsSort(e.target.value as 'price_asc' | 'rating_desc')}
+                    >
+                      <option value="price_asc">Ordenar: Menor precio</option>
+                      <option value="rating_desc">Ordenar: Mejor calificacion</option>
+                    </select>
+                    <Button variant="ghost" onClick={() => setViewingPostulations(null)}>
+                      <ChevronLeft className="w-4 h-4 mr-2"/> Volver
+                    </Button>
+                  </div>
                 </div>
 
                 {isLoadingPostulations ? (
                   <div className="py-20 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary"/></div>
-                ) : postulations.length > 0 ? (
+                ) : sortedPostulations.length > 0 ? (
                   <div className="space-y-4">
-                    {postulations.map((p: any) => (
+                    {sortedPostulations.map((p: any) => (
                       <Card key={p.id_postulacion} className="p-5 border border-slate-100 hover:border-primary/30 transition-all">
                         <div className="flex justify-between items-start mb-4">
                           <div className="flex items-center gap-3">
@@ -763,7 +817,7 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
                         <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl italic">"{p.descripcion_postulacion}"</p>
                         <div className="mt-4 flex gap-2">
                            <Button className="w-full text-xs py-2">Contactar</Button>
-                           <Button variant="outline" className="w-full text-xs py-2">Ver Perfil</Button>
+                           <Button variant="outline" className="w-full text-xs py-2" onClick={() => handleViewWorkerProfile(p.id_trabajador)}>Ver Perfil</Button>
                         </div>
                       </Card>
                     ))}
@@ -776,9 +830,118 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
           </div>
         )}
 
+        {workerProfileOpen && (
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-5xl">
+              <Card className="p-0 overflow-hidden bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+                <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+                  <div className="flex items-center gap-6">
+                    <img
+                      src={selectedWorkerProfile?.url_foto_perfil || '/images/logo1.png'}
+                      alt="Foto de perfil"
+                      className="w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-white/10"
+                      onError={(e) => {
+                        e.currentTarget.src = '/images/logo1.png';
+                      }}
+                    />
+                    <div className="space-y-2">
+                      <h3 className="text-3xl font-extrabold tracking-tight">{selectedWorkerProfile?.nombre_y_apellido_trabajador || 'Perfil de trabajador'}</h3>
+                      <p className="text-sm text-slate-300">{selectedWorkerProfile?.oficios?.map((o: any) => o.nombre_oficio).join(' • ') || 'Oficio no informado'}</p>
+                      {selectedWorkerProfile?.fecha_registro && (
+                        <div className="flex items-center gap-2 text-sm text-slate-300">
+                          <CalendarDays className="w-4 h-4" />
+                          Miembro desde {new Date(selectedWorkerProfile.fecha_registro).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <Button variant="primary" className="px-8 py-3 text-base self-start md:self-center" onClick={closeWorkerProfile}>Cerrar perfil</Button>
+                </div>
+
+                <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-2 space-y-8">
+                    {isLoadingWorkerProfile ? (
+                      <div className="py-20 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
+                    ) : workerProfileError ? (
+                      <Card className="p-6 border border-red-200 bg-red-50 text-red-700 font-semibold">{workerProfileError}</Card>
+                    ) : (
+                      <>
+                        <section className="space-y-3">
+                          <h4 className="text-3xl font-extrabold text-slate-900">Trabajos realizados</h4>
+                          <p className="text-slate-600">
+                            {selectedWorkerProfile?.trabajos_realizados > 0
+                              ? `Este profesional tiene ${selectedWorkerProfile.trabajos_realizados} trabajos/postulaciones registrados en la plataforma.`
+                              : 'Este profesional aun no tiene trabajos cargados.'}
+                          </p>
+                        </section>
+
+                        <section className="space-y-4">
+                          <h4 className="text-3xl font-extrabold text-slate-900">Reseñas</h4>
+                          {selectedWorkerProfile?.valoraciones?.length ? (
+                            <div className="space-y-3">
+                              {selectedWorkerProfile.valoraciones.map((review: any) => (
+                                <Card key={review.id_valoracion} className="p-4 border border-slate-100">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="font-bold text-sm text-slate-800">{review.cliente}</p>
+                                    <div className="flex gap-1">
+                                      {[...Array(5)].map((_, i) => (
+                                        <Star key={i} className={`w-3 h-3 ${i < Number(review.puntuacion || 0) ? 'text-yellow-400 fill-current' : 'text-slate-200'}`} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-slate-600">{review.comentario || 'Sin comentario.'}</p>
+                                </Card>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-slate-500">Este profesional aun no tiene reseñas.</p>
+                          )}
+                        </section>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <Card className="p-6 space-y-4 border border-slate-200">
+                      <h5 className="text-2xl font-bold text-slate-900">Contacto</h5>
+                      <div className="space-y-3 text-sm text-slate-700">
+                        <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-primary" /> {selectedWorkerProfile?.correo_trabajador || 'No informado'}</div>
+                        <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> {selectedWorkerProfile?.nro_celular_trabajador || 'No informado'}</div>
+                      </div>
+                    </Card>
+
+                    <Card className="p-6 space-y-3 border border-slate-200">
+                      <h5 className="text-2xl font-bold text-slate-900">Experiencia</h5>
+                      <p className="text-sm text-slate-600">Puntuación promedio</p>
+                      <div className="text-3xl font-extrabold text-primary">{Number(selectedWorkerProfile?.puntuacion || 0).toFixed(1)}</div>
+                      <p className="text-sm text-slate-500">Basado en {selectedWorkerProfile?.cantidad_valoraciones || 0} valoraciones</p>
+                    </Card>
+
+                    <Card className="p-6 space-y-3 border border-slate-200">
+                      <h5 className="text-2xl font-bold text-slate-900">Habilidades</h5>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedWorkerProfile?.oficios?.length ? selectedWorkerProfile.oficios.map((trade: any) => (
+                          <span key={trade.id_oficio} className="text-xs font-bold px-3 py-1 rounded-full bg-primary/10 text-primary">
+                            {trade.nombre_oficio}
+                          </span>
+                        )) : <p className="text-sm text-slate-500">Sin oficios registrados.</p>}
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+
         {activeTab === 'profile' && (
           <div className="max-w-2xl mx-auto space-y-8">
             <h2 className="text-2xl font-bold">Configuración de Perfil</h2>
+            {profileNotice.text && (
+              <div className={`rounded-2xl p-4 text-sm font-bold ${profileNotice.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {profileNotice.text}
+              </div>
+            )}
             <Card className="p-8 space-y-6">
                <div className="space-y-4">
                   <div className="space-y-1">
@@ -812,6 +975,8 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   const [forumPosts, setForumPosts] = useState<any[]>([]);
   const [isPostulating, setIsPostulating] = useState<any>(null);
   const [budget, setBudget] = useState({ price: '', materials: '', message: '' });
+  const [postulationNotice, setPostulationNotice] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
+  const [profileNotice, setProfileNotice] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
   const [isLoading, setIsLoading] = useState(false);
   const [profileData, setProfileData] = useState({ ...user });
   const [isSaving, setIsSaving] = useState(false);
@@ -829,29 +994,34 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   React.useEffect(() => { loadPosts(); }, []);
 
   const handlePostulate = async () => {
-    const res = await fetch('/api/jobs/postulate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id_trabajador: user.id_trabajador,
-        id_publi: isPostulating.id_publi,
-        presupuesto: Number(budget.price),
-        descripcion_postulacion: budget.message
-      })
-    });
-    
-    if (res.ok) {
-      setIsPostulating(null);
-      setBudget({ price: '', materials: '', message: '' });
-      alert('¡Postulación enviada exitosamente!');
-    } else {
-      const errorData = await res.json();
-      alert(`Error al enviar presupuesto: ${errorData.message || 'Error desconocido'}`);
+    try {
+      const res = await fetch('/api/jobs/postulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_trabajador: user.id_trabajador,
+          id_publi: isPostulating.id_publi,
+          presupuesto: Number(budget.price),
+          descripcion_postulacion: budget.message
+        })
+      });
+
+      if (res.ok) {
+        setIsPostulating(null);
+        setBudget({ price: '', materials: '', message: '' });
+        setPostulationNotice({ text: 'Postulacion enviada exitosamente.', type: 'success' });
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setPostulationNotice({ text: errorData.message || 'No se pudo enviar la postulacion.', type: 'error' });
+      }
+    } catch {
+      setPostulationNotice({ text: 'No se pudo conectar con el servidor. Intenta nuevamente.', type: 'error' });
     }
   };
 
   const handleUpdateProfile = async () => {
     setIsSaving(true);
+    setProfileNotice({ text: '', type: null });
     try {
       const res = await fetch('/api/jobs/profile/update', {
         method: 'POST',
@@ -866,8 +1036,13 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
         })
       });
       if (res.ok) {
-        alert('Perfil actualizado con éxito');
+        setProfileNotice({ text: 'Perfil actualizado con exito.', type: 'success' });
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setProfileNotice({ text: errorData.message || 'No se pudo actualizar el perfil.', type: 'error' });
       }
+    } catch {
+      setProfileNotice({ text: 'No se pudo conectar con el servidor. Intenta nuevamente.', type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -901,6 +1076,12 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
                 <Loader2 className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} /> Actualizar Foro
               </Button>
             </div>
+
+            {postulationNotice.text && (
+              <div className={`rounded-2xl p-4 text-sm font-bold ${postulationNotice.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {postulationNotice.text}
+              </div>
+            )}
             
             <div className="space-y-4">
                {forumPosts.length > 0 ? forumPosts.map(p => (
@@ -921,7 +1102,7 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
                             <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3"/> Cliente Verificado</span>
                           </div>
                        </div>
-                       <Button onClick={() => setIsPostulating(p)} className="px-8">Enviar Presupuesto</Button>
+                        <Button onClick={() => { setIsPostulating(p); setPostulationNotice({ text: '', type: null }); }} className="px-8">Enviar Presupuesto</Button>
                     </div>
                  </Card>
                )) : (
@@ -966,6 +1147,11 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
         {activeTab === 'profile' && (
           <div className="max-w-2xl mx-auto space-y-8">
             <h2 className="text-2xl font-bold">Configuración de Perfil</h2>
+            {profileNotice.text && (
+              <div className={`rounded-2xl p-4 text-sm font-bold ${profileNotice.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {profileNotice.text}
+              </div>
+            )}
             <Card className="p-8 space-y-6">
                <div className="space-y-4">
                   <div className="space-y-1">

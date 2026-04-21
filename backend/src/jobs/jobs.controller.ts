@@ -22,6 +22,15 @@ export class JobsController {
     return this.jobsService.getWorkers(tradeId ? parseInt(tradeId) : undefined);
   }
 
+  @Get('workers/:workerId')
+  async getWorkerProfile(@Param('workerId') workerId: string) {
+    const parsedId = parseInt(workerId, 10);
+    if (Number.isNaN(parsedId)) {
+      throw new BadRequestException('ID de trabajador invalido');
+    }
+    return this.jobsService.getWorkerProfile(parsedId);
+  }
+
   @Post('post')
   async createPost(@Body() data: CreatePostDto) {
     return this.jobsService.createPost(data);

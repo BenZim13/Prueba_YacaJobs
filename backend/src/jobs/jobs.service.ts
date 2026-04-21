@@ -37,6 +37,80 @@ export class JobsService {
     return data;
   }
 
+  async getWorkerProfile(workerId: number) {
+    const { data: worker, error: workerError } = await this.client
+      .from('trabajadores')
+      .select(`
+        id_trabajador,
+        nombre_y_apellido_trabajador,
+        correo_trabajador,
+        nro_celular_trabajador,
+        url_foto_perfil,
+        puntuacion,
+        fecha_registro,
+        oficio_del_trabajador (
+          oficios (
+            id_oficio,
+            nombre_oficio
+          )
+        )
+      `)
+      .eq('id_trabajador', workerId)
+      .maybeSingle();
+
+    if (workerError) throw new BadRequestException(workerError.message);
+    if (!worker) throw new BadRequestException('No se encontro el trabajador solicitado');
+
+    const { data: reviews, error: reviewsError } = await this.client
+      .from('valoraciones')
+      .select('id_valoracion, puntuacion, comentario, fecha_valoracion, clientes(nombre_y_apellido_cliente)')
+      .eq('id_receptor_trabajador', workerId)
+      .order('fecha_valoracion', { ascending: false })
+      .limit(6);
+
+    if (reviewsError) throw new BadRequestException(reviewsError.message);
+
+    const { count: reviewsCount, error: reviewsCountError } = await this.client
+      .from('valoraciones')
+      .select('id_valoracion', { count: 'exact', head: true })
+      .eq('id_receptor_trabajador', workerId);
+
+    if (reviewsCountError) throw new BadRequestException(reviewsCountError.message);
+
+    const { count: completedWorks, error: worksError } = await this.client
+      .from('postulaciones')
+      .select('id_postulacion', { count: 'exact', head: true })
+      .eq('id_trabajador', workerId);
+
+    if (worksError) throw new BadRequestException(worksError.message);
+
+    const trades = (worker.oficio_del_trabajador || [])
+      .map((item: any) => item?.oficios)
+      .filter(Boolean);
+
+    const normalizedReviews = (reviews || []).map((review: any) => ({
+      id_valoracion: review.id_valoracion,
+      puntuacion: review.puntuacion,
+      comentario: review.comentario,
+      fecha_valoracion: review.fecha_valoracion,
+      cliente: review.clientes?.nombre_y_apellido_cliente || 'Cliente',
+    }));
+
+    return {
+      id_trabajador: worker.id_trabajador,
+      nombre_y_apellido_trabajador: worker.nombre_y_apellido_trabajador,
+      correo_trabajador: worker.correo_trabajador,
+      nro_celular_trabajador: worker.nro_celular_trabajador,
+      url_foto_perfil: worker.url_foto_perfil,
+      puntuacion: worker.puntuacion,
+      fecha_registro: worker.fecha_registro,
+      oficios: trades,
+      valoraciones: normalizedReviews,
+      cantidad_valoraciones: reviewsCount || 0,
+      trabajos_realizados: completedWorks || 0,
+    };
+  }
+
   async createPost(data: any) {
     const { data: post, error } = await this.client
       .from('publicaciones')
