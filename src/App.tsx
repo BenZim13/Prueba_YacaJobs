@@ -50,25 +50,6 @@ const Button = ({ children, onClick, variant = 'primary', className = "", disabl
   );
 };
 
-const getUserDisplayName = (user: any) => {
-  const source = user?.user || user;
-  return source?.name || source?.nombre_y_apellido_cliente || source?.nombre_y_apellido_trabajador || 'Usuario';
-};
-
-const normalizeAuthUser = (userData: any) => {
-  const source = userData?.user || userData || {};
-  const displayName = getUserDisplayName(source);
-
-  return {
-    ...source,
-    name: displayName,
-    edad_cliente: source.edad_cliente ?? source.edad_trabajador,
-    edad_trabajador: source.edad_trabajador ?? source.edad_cliente,
-    celular_cliente: source.celular_cliente ?? source.nro_celular_trabajador,
-    nro_celular_trabajador: source.nro_celular_trabajador ?? source.celular_cliente,
-  };
-};
-
 // --- Views ---
 
 const LandingPage = ({ onStart }: { onStart: (role: UserRole | null, isLogin: boolean) => void }) => (
@@ -87,11 +68,11 @@ const LandingPage = ({ onStart }: { onStart: (role: UserRole | null, isLogin: bo
       </div>
       
       <h1 className="text-6xl font-extrabold text-primary tracking-tight leading-tight">
-        Conectamos <span className="text-accent underline decoration-4 underline-offset-8">experiencia</span> con necesidades reales.
+        Conectamos profesionales <span className="text-accent underline decoration-4 underline-offset-8">de oficio </span>con tus necesidades.
       </h1>
       <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
         La plataforma más confiable para encontrar profesionales de oficios en tu zona. 
-        Seguridad garantizada y validación rigurosa de identidad.
+        Seguridad garantizada, transparencia absoluta y validación rigurosa de identidad.
       </p>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
@@ -227,14 +208,16 @@ const AuthForm = ({ initialIsLogin, onAuth, onBackToLanding }: { initialIsLogin:
 
       if (!formData.phone.trim()) errors.phone = 'El celular es obligatorio.';
 
-      if (!formData.age.trim()) {
-        errors.age = 'La edad es obligatoria.';
-      } else {
-        const ageNumber = Number(formData.age);
-        if (Number.isNaN(ageNumber)) {
-          errors.age = 'La edad debe ser numerica.';
-        } else if (ageNumber < 18) {
-          errors.age = 'La edad debe ser mayor o igual a 18 anios.';
+      if (role === UserRole.CLIENT) {
+        if (!formData.age.trim()) {
+          errors.age = 'La edad es obligatoria.';
+        } else {
+          const ageNumber = Number(formData.age);
+          if (Number.isNaN(ageNumber)) {
+            errors.age = 'La edad debe ser numerica.';
+          } else if (ageNumber < 18) {
+            errors.age = 'La edad debe ser mayor o igual a 18 anios.';
+          }
         }
       }
 
@@ -366,7 +349,6 @@ const AuthForm = ({ initialIsLogin, onAuth, onBackToLanding }: { initialIsLogin:
           contraseña_trabajador: formData.password,
           nombre_y_apellido_trabajador: formData.name,
           dni_trabajador: Number(formData.dni),
-          edad_trabajador: Number(formData.age),
           nro_celular_trabajador: formData.phone,
           url_dni_frente_trabajador: 'https://placeholder.com/f',
           url_dni_reverso_trabajador: 'https://placeholder.com/r',
@@ -483,10 +465,12 @@ const AuthForm = ({ initialIsLogin, onAuth, onBackToLanding }: { initialIsLogin:
                      {fieldErrors.dni && <p className="text-xs text-red-600 font-semibold mt-1">{fieldErrors.dni}</p>}
                    </div>
                    <div className="flex gap-4">
-                     <div className="flex-1">
-                       <input className={`input-soft ${fieldErrors.age ? 'border-red-400 focus:border-red-500' : ''}`} placeholder="Edad" type="number" value={formData.age} onChange={e => setFormField('age', e.target.value)} />
-                       {fieldErrors.age && <p className="text-xs text-red-600 font-semibold mt-1">{fieldErrors.age}</p>}
-                     </div>
+                     {role === UserRole.CLIENT && (
+                       <div className="flex-1">
+                         <input className={`input-soft ${fieldErrors.age ? 'border-red-400 focus:border-red-500' : ''}`} placeholder="Edad" type="number" value={formData.age} onChange={e => setFormField('age', e.target.value)} />
+                         {fieldErrors.age && <p className="text-xs text-red-600 font-semibold mt-1">{fieldErrors.age}</p>}
+                       </div>
+                     )}
                      <div className="flex-1">
                        <input className={`input-soft ${fieldErrors.phone ? 'border-red-400 focus:border-red-500' : ''}`} placeholder="Celular" value={formData.phone} onChange={e => setFormField('phone', e.target.value)} />
                        {fieldErrors.phone && <p className="text-xs text-red-600 font-semibold mt-1">{fieldErrors.phone}</p>}
@@ -535,7 +519,6 @@ const AuthForm = ({ initialIsLogin, onAuth, onBackToLanding }: { initialIsLogin:
 };
 
 const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }) => {
-  const displayName = getUserDisplayName(user);
   const [activeTab, setActiveTab] = useState<'search' | 'posts' | 'profile'>('search');
   const [trades, setTrades] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -543,7 +526,7 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   const [searchQuery, setSearchQuery] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [newPost, setNewPost] = useState({ tradeId: '', description: '', urgency: 'Baja' });
-  const [profileData, setProfileData] = useState({ ...user, name: displayName });
+  const [profileData, setProfileData] = useState({ ...user });
   const [isSaving, setIsSaving] = useState(false);
   const [profileNotice, setProfileNotice] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
   const [viewingPostulations, setViewingPostulations] = useState<any>(null);
@@ -553,10 +536,6 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   const [selectedWorkerProfile, setSelectedWorkerProfile] = useState<any>(null);
   const [isLoadingWorkerProfile, setIsLoadingWorkerProfile] = useState(false);
   const [workerProfileError, setWorkerProfileError] = useState('');
-
-  React.useEffect(() => {
-    setProfileData({ ...user, name: displayName });
-  }, [user, displayName]);
 
   const loadInitial = async () => {
     const [tRes, pRes] = await Promise.all([
@@ -676,8 +655,8 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
         </nav>
         <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
            <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">{displayName?.[0] || 'U'}</div>
-             <div className="truncate text-xs font-bold">{displayName}</div>
+             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">{user.name?.[0] || 'U'}</div>
+             <div className="truncate text-xs font-bold">{user.name || 'Usuario'}</div>
            </div>
            <button onClick={onLogout} className="text-xs font-bold text-red-400 hover:text-red-600 flex items-center gap-2">
              <LogOut className="w-4 h-4"/> Salir
@@ -992,7 +971,6 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
 };
 
 const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }) => {
-  const displayName = getUserDisplayName(user);
   const [activeTab, setActiveTab] = useState<'forum' | 'profile'>('forum');
   const [forumPosts, setForumPosts] = useState<any[]>([]);
   const [isPostulating, setIsPostulating] = useState<any>(null);
@@ -1000,69 +978,20 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   const [postulationNotice, setPostulationNotice] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
   const [profileNotice, setProfileNotice] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
   const [isLoading, setIsLoading] = useState(false);
-  const [profileData, setProfileData] = useState({ ...user, name: displayName });
+  const [profileData, setProfileData] = useState({ ...user });
   const [isSaving, setIsSaving] = useState(false);
 
-  React.useEffect(() => {
-    setProfileData({ ...user, name: displayName });
-  }, [user, displayName]);
-
-  const loadPosts = async (tradeIds: number[] = []) => {
+  const loadPosts = async () => {
     setIsLoading(true);
     try {
-      if (!tradeIds.length) {
-        setForumPosts([]);
-        return;
-      }
-
-      const responses = await Promise.all(
-        tradeIds.map((tradeId) => fetch(`/api/jobs/posts?tradeId=${tradeId}`))
-      );
-      const payloads = await Promise.all(
-        responses
-          .filter((response) => response.ok)
-          .map((response) => response.json())
-      );
-
-      const combinedPosts = payloads.flat();
-      const uniquePosts = Array.from(new Map(combinedPosts.map((post: any) => [post.id_publi, post])).values());
-      setForumPosts(uniquePosts);
+      const res = await fetch('/api/jobs/posts');
+      if (res.ok) setForumPosts(await res.json());
     } finally {
       setIsLoading(false);
     }
   };
 
-  React.useEffect(() => {
-    let isMounted = true;
-
-    const loadWorkerProfileAndPosts = async () => {
-      try {
-        const profileResponse = await fetch(`/api/jobs/workers/${user.id_trabajador}`);
-        if (!profileResponse.ok) return;
-
-        const profile = await profileResponse.json();
-        const tradeIds = Array.isArray(profile?.oficios)
-          ? profile.oficios
-              .map((trade: any) => Number(trade?.id_oficio))
-              .filter((tradeId: number) => Number.isFinite(tradeId))
-          : [];
-
-        if (isMounted) {
-          await loadPosts(tradeIds);
-        }
-      } catch {
-        if (isMounted) {
-          setForumPosts([]);
-        }
-      }
-    };
-
-    loadWorkerProfileAndPosts();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user.id_trabajador]);
+  React.useEffect(() => { loadPosts(); }, []);
 
   const handlePostulate = async () => {
     try {
@@ -1129,8 +1058,8 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
         </nav>
         <div className="pt-6 border-t flex flex-col gap-4">
            <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">{displayName?.[0] || 'U'}</div>
-             <div className="truncate text-xs font-bold">{displayName}</div>
+             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">{user.name?.[0]}</div>
+             <div className="truncate text-xs font-bold">{user.name}</div>
            </div>
            <button onClick={onLogout} className="text-xs font-bold text-red-400 hover:text-red-600 flex items-center gap-2">
              <LogOut className="w-4 h-4"/> Salir
@@ -1155,7 +1084,7 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
             )}
             
             <div className="space-y-4">
-              {forumPosts.length > 0 ? forumPosts.map(p => (
+               {forumPosts.length > 0 ? forumPosts.map(p => (
                  <Card key={p.id_publi} className="p-8 space-y-4 hover:shadow-lg transition-all border-l-4 border-l-primary">
                     <div className="flex justify-between items-start">
                        <div className="space-y-4 flex-1">
@@ -1177,7 +1106,7 @@ const WorkerDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
                     </div>
                  </Card>
                )) : (
-                 <div className="py-20 text-center text-slate-400">No hay publicaciones disponibles para tu rubro actualmente.</div>
+                 <div className="py-20 text-center text-slate-400">No hay publicaciones disponibles en el foro actualmente.</div>
                )}
             </div>
 
@@ -1258,7 +1187,7 @@ export default function App() {
   };
 
   const handleAuth = (userData: any) => {
-    setUser(normalizeAuthUser(userData));
+    setUser(userData);
     setView('dashboard');
   };
 
