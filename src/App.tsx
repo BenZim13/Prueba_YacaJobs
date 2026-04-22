@@ -295,6 +295,15 @@ const AuthForm = ({ initialIsLogin, onAuth, onBackToLanding }: { initialIsLogin:
     return { fieldErrors: nextFieldErrors, message: normalizedMessage };
   };
 
+  const normalizeAuthUser = (payload: any) => {
+    const rawUser = payload?.user?.user ?? payload?.user;
+    return {
+      ...rawUser,
+      role,
+      name: rawUser?.nombre_y_apellido_cliente || rawUser?.nombre_y_apellido_trabajador,
+    };
+  };
+
   const handleBack = () => {
     setFieldErrors({});
     if (!role) {
@@ -331,7 +340,7 @@ const AuthForm = ({ initialIsLogin, onAuth, onBackToLanding }: { initialIsLogin:
         const result = await response.json();
         setFieldErrors({});
         setMessage({text: '¡Ingreso exitoso!', type: 'success'});
-        setTimeout(() => onAuth({ ...result.user, role, name: result.user.nombre_y_apellido_cliente || result.user.nombre_y_apellido_trabajador }), 1000);
+        setTimeout(() => onAuth(normalizeAuthUser(result)), 1000);
       } else {
         // Registration
         const endpoint = role === UserRole.CLIENT ? '/api/auth/register/client' : '/api/auth/register/worker';
@@ -370,7 +379,7 @@ const AuthForm = ({ initialIsLogin, onAuth, onBackToLanding }: { initialIsLogin:
         const result = await response.json();
         setFieldErrors({});
         setMessage({text: '¡Registro completado!', type: 'success'});
-        setTimeout(() => onAuth({ ...result.user, role, name: result.user.nombre_y_apellido_cliente || result.user.nombre_y_apellido_trabajador }), 1000);
+        setTimeout(() => onAuth(normalizeAuthUser(result)), 1000);
       }
     } catch (error: any) {
       const { fieldErrors: backendFieldErrors, message: backendMessage } = parseBackendValidation(error);
@@ -538,11 +547,16 @@ const ClientDashboard = ({ user, onLogout }: { user: any; onLogout: () => void }
   const [workerProfileError, setWorkerProfileError] = useState('');
 
   const loadInitial = async () => {
-    const [tRes, pRes] = await Promise.all([
-      fetch('/api/jobs/trades'),
-      fetch(`/api/jobs/posts?clientId=${user.id_cliente}`)
-    ]);
+    const clientId = Number(user?.id_cliente);
+    const tRes = await fetch('/api/jobs/trades');
     if (tRes.ok) setTrades(await tRes.json());
+
+    if (!Number.isFinite(clientId)) {
+      setPosts([]);
+      return;
+    }
+
+    const pRes = await fetch(`/api/jobs/posts?clientId=${clientId}`);
     if (pRes.ok) setPosts(await pRes.json());
   };
 

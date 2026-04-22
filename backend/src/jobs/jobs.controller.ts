@@ -38,10 +38,24 @@ export class JobsController {
 
   @Get('posts')
   async getPosts(@Query('clientId') clientId?: string, @Query('tradeId') tradeId?: string) {
-    return this.jobsService.getPosts(
-      clientId ? parseInt(clientId) : undefined,
-      tradeId ? parseInt(tradeId) : undefined
-    );
+    let parsedClientId: number | undefined;
+    let parsedTradeId: number | undefined;
+
+    if (typeof clientId === 'string' && clientId.trim() !== '') {
+      parsedClientId = parseInt(clientId, 10);
+      if (Number.isNaN(parsedClientId)) {
+        throw new BadRequestException('clientId invalido');
+      }
+    }
+
+    if (typeof tradeId === 'string' && tradeId.trim() !== '') {
+      parsedTradeId = parseInt(tradeId, 10);
+      if (Number.isNaN(parsedTradeId)) {
+        throw new BadRequestException('tradeId invalido');
+      }
+    }
+
+    return this.jobsService.getPosts(parsedClientId, parsedTradeId);
   }
 
   @Post('postulate')
